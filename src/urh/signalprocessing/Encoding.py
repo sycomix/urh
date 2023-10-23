@@ -220,7 +220,7 @@ class Encoding(object):
         output = ""
         if len(src) == len(dst):
             for i in range(0, len(src)):
-                output += self.bit2str(src[i]) + ":" + self.bit2str(dst[i]) + ";"
+                output += f"{self.bit2str(src[i])}:{self.bit2str(dst[i])};"
 
         return output
 
@@ -269,7 +269,7 @@ class Encoding(object):
                     if (len(self.data_whitening_sync) > 0 and len(self.data_whitening_polynomial) > 0 and len(overwrite_crc) > 0):
                         self.data_whitening_sync = util.hex2bit(self.data_whitening_sync)
                         self.data_whitening_polynomial = util.hex2bit(self.data_whitening_polynomial)
-                        self.cc1101_overwrite_crc = True if overwrite_crc == "1" else False
+                        self.cc1101_overwrite_crc = overwrite_crc == "1"
                 elif self.chain[i + 1].count(';') == 1:
                     self.data_whitening_sync, self.data_whitening_polynomial = self.chain[i + 1].split(";")
                     if (len(self.data_whitening_sync) > 0 and len(self.data_whitening_polynomial) > 0):
@@ -283,7 +283,7 @@ class Encoding(object):
                     self.cutmode = int(self.cutmode)
                     if self.cutmode < 0 or self.cutmode > 3:
                         self.cutmode = 0
-                    if self.cutmode == 0 or self.cutmode == 1:
+                    if self.cutmode in {0, 1}:
                         self.cutmark = self.str2bit(tmp)
                         if len(self.cutmark) == 0: self.cutmark = array.array("B", [True, False, True, False])
                     else:
@@ -315,11 +315,7 @@ class Encoding(object):
         if len(inputbits):
             self.__symbol_len = len(output) / len(inputbits)
 
-        if error_states:
-            error_state = error_states[0]
-        else:
-            error_state = self.ErrorState.SUCCESS
-
+        error_state = error_states[0] if error_states else self.ErrorState.SUCCESS
         return output, errors, error_state
 
     def lfsr(self, clock):
@@ -329,7 +325,7 @@ class Encoding(object):
 
         if len(self.lfsr_state) == 0:
             self.lfsr_state.extend([True] * len_pol)
-        for i in range(0, clock):
+        for _ in range(0, clock):
             # Determine first bit with polynomial
             first_bit = -1
             for j in range(len_pol - 1, -1, -1):
@@ -416,29 +412,24 @@ class Encoding(object):
         output = array.array("B", [])
         errors = 0
 
-        if decoding:
-            # Remove carrier if decoding
-            if len(self.carrier) > 0:
+        if len(self.carrier) > 0:
+            if decoding:
                 for x in range(0, len(inpt)):
                     tmp = self.carrier[x % len(self.carrier)]
                     if tmp not in ("0", "1", "*"):  # Data!
                         output.append(inpt[x])
-                    else:  # Carrier -> 0, 1, *
-                        if tmp in ("0", "1"):
-                            if (inpt[x] and tmp != "1") or (not inpt[x] and tmp != "0"):
-                                errors += 1
-        else:
-            # Add carrier if encoding
-            if len(self.carrier) > 0:
+                    elif tmp in ("0", "1"):
+                        if (inpt[x] and tmp != "1") or (not inpt[x] and tmp != "0"):
+                            errors += 1
+            else:
                 x = 0
                 for i in inpt:
                     tmp = self.carrier[x % len(self.carrier)]
-                    if not tmp in ("0", "1", "*"):
+                    if tmp not in ("0", "1", "*"):
                         output.append(i)
                         x += 1
                     while self.carrier[x % len(self.carrier)] in ("0", "1", "*"):
-                        output.append(False if self.carrier[x % len(self.carrier)] in (
-                        "0", "*") else True)  # Add 0 when there is a wildcard (*) in carrier description
+                        output.append(self.carrier[x % len(self.carrier)] not in ( "0", "*"))
                         x += 1
         return output, errors, self.ErrorState.SUCCESS
 
@@ -504,15 +495,15 @@ class Encoding(object):
 
     def code_invert(self, decoding, inpt):
         errors = 0
-        return array.array("B", [True if not x else False for x in inpt]), errors, self.ErrorState.SUCCESS
+        return array.array("B", [not x for x in inpt]), errors, self.ErrorState.SUCCESS
 
     def code_differential(self, decoding, inpt):
         output = array.array("B", [inpt[0]])
         errors = 0
 
+        # Remove differential from inpt stream
+        i = 1
         if decoding:
-            # Remove differential from inpt stream
-            i = 1
             while i < len(inpt):
                 if inpt[i] != inpt[i - 1]:
                     output.append(True)
@@ -520,16 +511,13 @@ class Encoding(object):
                     output.append(False)
                 i += 1
         else:
-            # Add differential encoding to output stream
-            i = 1
             while i < len(inpt):
                 if not inpt[i]:
                     output.append(output[i - 1])
+                elif output[i - 1]:
+                    output.append(False)
                 else:
-                    if not output[i - 1]:
-                        output.append(True)
-                    else:
-                        output.append(False)
+                    output.append(True)
                 i += 1
         return output, errors, self.ErrorState.SUCCESS
 
@@ -615,13 +603,12 @@ class Encoding(object):
                         output.append(True)
                     elif cnt > 0 and cnt <= self.morse_low:
                         output.append(False)
-                    else:
-                        if cnt > 0:
-                            if cnt > (self.morse_high+self.morse_low // 2):
-                                output.append(True)
-                            else:
-                                output.append(False)
-                            errors += 1
+                    elif cnt > 0:
+                        if cnt > (self.morse_high+self.morse_low // 2):
+                            output.append(True)
+                        else:
+                            output.append(False)
+                        errors += 1
                     cnt = 0
                 i += 1
         else:
@@ -659,7 +646,7 @@ class Encoding(object):
         pos = -1
         if decoding:
             # Search for cutmark and save to pos
-            if self.cutmode == 0 or self.cutmode == 1:
+            if self.cutmode in [0, 1]:
                 len_cutmark = len(self.cutmark)
                 if len_cutmark < 1:
                     # Cutmark is not valid
@@ -674,14 +661,11 @@ class Encoding(object):
 
             if 0 <= pos < len(inpt):
                 # Delete before
-                if self.cutmode == 0 or self.cutmode == 2:
+                if self.cutmode in [0, 2]:
                     output.extend(inpt[pos:])
                 else:
                     # Delete after
-                    if self.cutmode == 1:
-                        pos += len(self.cutmark)
-                    else:
-                        pos += 1
+                    pos += len(self.cutmark) if self.cutmode == 1 else 1
                     output.extend(inpt[:pos])
             else:
                 # Position not found or not in range, do nothing!
@@ -811,18 +795,13 @@ class Encoding(object):
         return "0" * (4 * len(inpt.lstrip('0x')) - len(bitstring)) + bitstring
 
     def __eq__(self, other):
-        if other is None:
-            return False
-
-        return self.get_chain() == other.get_chain()
+        return False if other is None else self.get_chain() == other.get_chain()
 
     @staticmethod
     def decodings_to_xml_tag(decodings: list) -> ET.Element:
         decodings_tag = ET.Element("decodings")
         for decoding in decodings:
-            dec_str = ""
-            for chn in decoding.get_chain():
-                dec_str += repr(chn) + ", "
+            dec_str = "".join(f"{repr(chn)}, " for chn in decoding.get_chain())
             dec_tag = ET.SubElement(decodings_tag, "decoding")
             dec_tag.text = dec_str
         return decodings_tag

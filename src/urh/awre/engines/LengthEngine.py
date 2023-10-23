@@ -64,9 +64,9 @@ class LengthEngine(Engine):
             if count < 2:
                 continue
 
-            for length in common_ranges_by_length:
+            for value in common_ranges_by_length.values():
                 try:
-                    common_ranges_by_length[length].remove(rng)
+                    value.remove(rng)
                 except ValueError:
                     pass
 
@@ -126,7 +126,7 @@ class LengthEngine(Engine):
 
         # Set for every window length the highest scored range as candidate
         possible_window_lengths = defaultdict(int)
-        for length, ranges_by_window_length in scored_ranges.items():
+        for ranges_by_window_length in scored_ranges.values():
             for window_length, ranges in ranges_by_window_length.items():
                 try:
                     ranges_by_window_length[window_length] = max(filter(lambda x: x.score >= minimum_score, ranges),

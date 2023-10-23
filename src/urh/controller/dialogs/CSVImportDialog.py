@@ -215,14 +215,14 @@ class CSVImportDialog(QDialog):
                                                    self.ui.spinBoxTimestampColumn.value()-1)
 
         target_filename = self.filename.rstrip(".csv")
-        if os.path.exists(target_filename + ".complex"):
+        if os.path.exists(f"{target_filename}.complex"):
             i = 1
-            while os.path.exists(target_filename + "_" + str(i) + ".complex"):
+            while os.path.exists(f"{target_filename}_{i}.complex"):
                 i += 1
         else:
             i = None
 
-        target_filename = target_filename if not i else target_filename + "_" + str(i)
+        target_filename = target_filename if not i else f"{target_filename}_{str(i)}"
         target_filename += ".complex"
 
         iq_data.tofile(target_filename)

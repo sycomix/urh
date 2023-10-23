@@ -22,7 +22,7 @@ class PluginFrame(QFrame):
         self.create_connects()
 
         try:
-            self.restoreGeometry(settings.read("{}/geometry".format(self.__class__.__name__)))
+            self.restoreGeometry(settings.read(f"{self.__class__.__name__}/geometry"))
         except TypeError:
             pass
 

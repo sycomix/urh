@@ -45,8 +45,8 @@ class Transcript(object):
         result = []
         for source, destination, msg, _ in self.__data[-1]:
             if participant == destination:
-                result.append("->" + msg.plain_bits_str)
+                result.append(f"->{msg.plain_bits_str}")
             elif participant == source:
-                result.append("<-" + msg.plain_bits_str)
+                result.append(f"<-{msg.plain_bits_str}")
 
         return "\n".join(result)

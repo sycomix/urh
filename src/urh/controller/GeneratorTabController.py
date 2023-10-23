@@ -288,7 +288,7 @@ class GeneratorTabController(QWidget):
         modulator_dialog, message = self.prepare_modulation_dialog()
         modulator_dialog.showMaximized()
 
-        modulator_dialog.initialize(message.encoded_bits_str[0:16])
+        modulator_dialog.initialize(message.encoded_bits_str[:16])
         self.project_manager.modulation_was_edited = True
 
     @pyqtSlot()
@@ -338,8 +338,9 @@ class GeneratorTabController(QWidget):
 
     @pyqtSlot()
     def on_lWPauses_double_clicked(self):
-        sel_indexes = [index.row() for index in self.ui.lWPauses.selectedIndexes()]
-        if len(sel_indexes) > 0:
+        if sel_indexes := [
+            index.row() for index in self.ui.lWPauses.selectedIndexes()
+        ]:
             self.edit_pause_item(sel_indexes[0])
 
     @pyqtSlot()
@@ -357,7 +358,7 @@ class GeneratorTabController(QWidget):
     @pyqtSlot()
     def on_lWpauses_selection_changed(self):
         rows = [index.row() for index in self.ui.lWPauses.selectedIndexes()]
-        if len(rows) == 0:
+        if not rows:
             return
         self.ui.tableMessages.show_pause_active = True
         self.ui.tableMessages.pause_row = rows[0]
@@ -538,7 +539,7 @@ class GeneratorTabController(QWidget):
     @pyqtSlot()
     def handle_label_selection_changed(self):
         rows = [index.row() for index in self.ui.listViewProtoLabels.selectedIndexes()]
-        if len(rows) == 0:
+        if not rows:
             return
 
         maxrow = numpy.max(rows)
@@ -565,12 +566,7 @@ class GeneratorTabController(QWidget):
         try:
             total_samples = self.total_modulated_samples
             buffer = self.prepare_modulation_buffer(total_samples)
-            if buffer is not None:
-                modulated_data = self.modulate_data(buffer)
-            else:
-                # Enter continuous mode
-                modulated_data = None
-
+            modulated_data = self.modulate_data(buffer) if buffer is not None else None
             try:
                 if modulated_data is not None:
                     try:
@@ -603,8 +599,9 @@ class GeneratorTabController(QWidget):
 
     @pyqtSlot()
     def on_btn_save_clicked(self):
-        filename = FileOperator.get_save_file_name("profile.fuzz.xml", caption="Save fuzz profile")
-        if filename:
+        if filename := FileOperator.get_save_file_name(
+            "profile.fuzz.xml", caption="Save fuzz profile"
+        ):
             self.table_model.protocol.to_xml_file(filename,
                                                   decoders=self.project_manager.decodings,
                                                   participants=self.project_manager.participants,

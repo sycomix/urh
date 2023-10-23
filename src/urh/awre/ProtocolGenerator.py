@@ -78,22 +78,24 @@ class ProtocolGenerator(object):
         if participant is None:
             return self.to_bits(self.BROADCAST_ADDRESS)
 
-        address = "0x" + participant.address_hex if not participant.address_hex.startswith(
-            "0x") else participant.address_hex
+        address = (
+            f"0x{participant.address_hex}"
+            if not participant.address_hex.startswith("0x")
+            else participant.address_hex
+        )
         return self.to_bits(address)
 
     @staticmethod
     def to_bits(bit_or_hex_str: str):
-        if bit_or_hex_str.startswith("0x"):
-            lut = {"{0:x}".format(i): "{0:04b}".format(i) for i in range(16)}
-            return "".join(lut[c] for c in bit_or_hex_str[2:])
-        else:
+        if not bit_or_hex_str.startswith("0x"):
             return bit_or_hex_str
+        lut = {"{0:x}".format(i): "{0:04b}".format(i) for i in range(16)}
+        return "".join(lut[c] for c in bit_or_hex_str[2:])
 
     def decimal_to_bits(self, number: int, num_bits: int) -> str:
         len_formats = {8: "B", 16: "H", 32: "I", 64: "Q"}
         if num_bits not in len_formats:
-            raise ValueError("Invalid length for length field: {} bits".format(num_bits))
+            raise ValueError(f"Invalid length for length field: {num_bits} bits")
 
         struct_format = "<" if self.little_endian else ">"
         struct_format += len_formats[num_bits]
@@ -180,7 +182,8 @@ class ProtocolGenerator(object):
             elif lbl.field_type.function == FieldType.Function.DATA:
                 if len(data) != len_field:
                     raise ValueError(
-                        "Length of data ({} bits) != length data field ({} bits)".format(len(data), len_field))
+                        f"Length of data ({len(data)} bits) != length data field ({len_field} bits)"
+                    )
                 bits.append(data)
 
             start = lbl.end

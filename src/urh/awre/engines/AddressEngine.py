@@ -33,10 +33,10 @@ class AddressEngine(Engine):
         self.src_field_present = src_field_present
 
         if already_labeled is not None:
-            for start, end in already_labeled:
-                # convert it to hex
-                self.already_labeled.append((int(math.ceil(start / 4)), int(math.ceil(end / 4))))
-
+            self.already_labeled.extend(
+                (int(math.ceil(start / 4)), int(math.ceil(end / 4)))
+                for start, end in already_labeled
+            )
         self.message_indices_by_participant = defaultdict(list)
         for i, participant_index in enumerate(self.participant_indices):
             self.message_indices_by_participant[participant_index].append(i)
@@ -48,8 +48,10 @@ class AddressEngine(Engine):
 
     @staticmethod
     def cross_swap_check(rng1: CommonRange, rng2: CommonRange):
-        return (rng1.start == rng2.start + rng1.length or rng1.start == rng2.start - rng1.length) \
-               and rng1.value.tobytes() == rng2.value.tobytes()
+        return (
+            rng1.start in [rng2.start + rng1.length, rng2.start - rng1.length]
+            and rng1.value.tobytes() == rng2.value.tobytes()
+        )
 
     @staticmethod
     def ack_check(rng1: CommonRange, rng2: CommonRange):
@@ -137,10 +139,11 @@ class AddressEngine(Engine):
         self.__assign_participant_addresses(addresses_by_participant, high_scored_ranges_by_participant)
 
         # Eliminate participants for which we could not assign an address
-        for participant, address in addresses_by_participant.copy().items():
-            if address is None:
-                del addresses_by_participant[participant]
-
+        addresses_by_participant = {
+            participant: address
+            for participant, address in addresses_by_participant.items()
+            if address is not None
+        }
         # Now we can separate SRC and DST
         for participant, ranges in high_scored_ranges_by_participant.items():
             try:
@@ -153,9 +156,7 @@ class AddressEngine(Engine):
 
             for rng in sorted(ranges, key=lambda r: r.score, reverse=True):
                 rng.field_type = "source address" if rng.value.tostring() == address else "destination address"
-                if len(result) == 0:
-                    result.append(rng)
-                else:
+                if result:
                     subset = next((r for r in result if rng.message_indices.issubset(r.message_indices)), None)
                     if subset is not None:
                         if rng.field_type == subset.field_type:
@@ -166,8 +167,7 @@ class AddressEngine(Engine):
                             # Ensure addresses are next to each other
                             continue
 
-                    result.append(rng)
-
+                result.append(rng)
             high_scored_ranges_by_participant[participant] = result
 
         self.__find_broadcast_fields(high_scored_ranges_by_participant, addresses_by_participant)
@@ -175,7 +175,7 @@ class AddressEngine(Engine):
         result = [rng for ranges in high_scored_ranges_by_participant.values() for rng in ranges]
         # If we did not find a SRC address, lower the score a bit,
         # so DST fields do not win later e.g. again length fields in case of tie
-        if not any(rng.field_type == "source address" for rng in result):
+        if all(rng.field_type != "source address" for rng in result):
             for rng in result:
                 rng.score *= 0.95
 
@@ -220,8 +220,7 @@ class AddressEngine(Engine):
         # Take most common address length of participants, to ensure they all have same address length
         counted = Counter(address_lengths)
         try:
-            address_length = max(counted, key=lambda x: (counted[x], -x))
-            return address_length
+            return max(counted, key=lambda x: (counted[x], -x))
         except ValueError:  # max() arg is an empty sequence
             return 0
 
@@ -308,7 +307,7 @@ class AddressEngine(Engine):
 
             for src_address_field in src_address_fields:  # type: CommonRange
                 msg_without_dst = {i for i in src_address_field.message_indices if i not in msg_with_dst}
-                if len(msg_without_dst) == 0:
+                if not msg_without_dst:
                     continue
                 try:
                     matching_dst = next(dst for dst in dst_address_fields
@@ -319,7 +318,7 @@ class AddressEngine(Engine):
                 for msg in msg_without_dst:
                     broadcast_bag[matching_dst].append(msg)
 
-        if len(broadcast_bag) == 0:
+        if not broadcast_bag:
             return
 
         broadcast_address = None
@@ -365,10 +364,12 @@ class AddressEngine(Engine):
             return result
 
         # If we already know the address length we do not need to bother with other candidates
-        if len(already_assigned) > 0:
+        if already_assigned:
             addr_len = len(self.known_addresses_by_participant[already_assigned[0]])
             if any(len(self.known_addresses_by_participant[i]) != addr_len for i in already_assigned):
-                logger.warning("Addresses do not have a common length. Assuming length of {}".format(addr_len))
+                logger.warning(
+                    f"Addresses do not have a common length. Assuming length of {addr_len}"
+                )
         else:
             addr_len = None
 

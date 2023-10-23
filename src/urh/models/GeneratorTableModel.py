@@ -175,15 +175,19 @@ class GeneratorTableModel(TableModel):
     def on_data_edited(self, row: int, column: int):
         edited_range = range(column, column+1)
         message = self.protocol.messages[row]
-        checksum_labels = message.message_type.checksum_labels
-        if checksum_labels:
-            edited_checksum_labels = [lbl for lbl in checksum_labels
-                                      if any(j in edited_range
-                                             for j in range(*message.get_label_range(lbl=lbl,
-                                                                                     view=self.proto_view,
-                                                                                     decode=False)))]
-
-            if edited_checksum_labels:
+        if checksum_labels := message.message_type.checksum_labels:
+            if edited_checksum_labels := [
+                lbl
+                for lbl in checksum_labels
+                if any(
+                    j in edited_range
+                    for j in range(
+                        *message.get_label_range(
+                            lbl=lbl, view=self.proto_view, decode=False
+                        )
+                    )
+                )
+            ]:
                 for lbl in edited_checksum_labels:
                     if lbl.fuzz_created:
                         continue

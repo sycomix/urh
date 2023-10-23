@@ -78,10 +78,9 @@ class SimulatorMessageTableModel(TableModel):
         return super().data(index, role)
 
     def flags(self, index: QModelIndex):
-        if index.isValid():
-            if self.is_writeable:
-                return Qt.ItemIsEnabled | Qt.ItemIsEditable | Qt.ItemIsSelectable
-            else:
-                return Qt.ItemIsEnabled | Qt.ItemIsSelectable
-        else:
+        if not index.isValid():
             return Qt.NoItemFlags
+        if self.is_writeable:
+            return Qt.ItemIsEnabled | Qt.ItemIsEditable | Qt.ItemIsSelectable
+        else:
+            return Qt.ItemIsEnabled | Qt.ItemIsSelectable

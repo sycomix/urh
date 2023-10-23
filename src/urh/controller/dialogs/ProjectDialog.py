@@ -77,7 +77,7 @@ class ProjectDialog(QDialog):
         self.on_line_edit_path_text_edited()
 
         try:
-            self.restoreGeometry(settings.read("{}/geometry".format(self.__class__.__name__)))
+            self.restoreGeometry(settings.read(f"{self.__class__.__name__}/geometry"))
         except TypeError:
             pass
 
@@ -117,7 +117,7 @@ class ProjectDialog(QDialog):
         self.ui.lblNewPath.setVisible(not os.path.isdir(self.path))
 
     def closeEvent(self, event: QCloseEvent):
-        settings.write("{}/geometry".format(self.__class__.__name__), self.saveGeometry())
+        settings.write(f"{self.__class__.__name__}/geometry", self.saveGeometry())
         super().closeEvent(event)
 
     @pyqtSlot(float)
@@ -167,8 +167,7 @@ class ProjectDialog(QDialog):
 
     @pyqtSlot()
     def on_btn_select_path_clicked(self):
-        directory = FileOperator.get_directory()
-        if directory:
+        if directory := FileOperator.get_directory():
             self.set_path(directory)
 
     @pyqtSlot(dict)

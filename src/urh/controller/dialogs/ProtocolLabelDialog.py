@@ -65,7 +65,7 @@ class ProtocolLabelDialog(QDialog):
         self.setWindowFlags(Qt.Window)
 
         try:
-            self.restoreGeometry(settings.read("{}/geometry".format(self.__class__.__name__)))
+            self.restoreGeometry(settings.read(f"{self.__class__.__name__}/geometry"))
         except TypeError:
             pass
 
@@ -83,7 +83,9 @@ class ProtocolLabelDialog(QDialog):
                     w = ChecksumWidget(lbl, self.model.message, self.model.proto_view)
                     self.ui.tabWidgetAdvancedSettings.addTab(w, lbl.name)
                 else:
-                    logger.error("No Special Config Dialog for field type " + lbl.field_type.caption)
+                    logger.error(
+                        f"No Special Config Dialog for field type {lbl.field_type.caption}"
+                    )
 
         if self.ui.tabWidgetAdvancedSettings.count() > 0:
             self.ui.tabWidgetAdvancedSettings.setCurrentIndex(0)
@@ -107,7 +109,7 @@ class ProtocolLabelDialog(QDialog):
             event.accept()
 
     def closeEvent(self, event: QCloseEvent):
-        settings.write("{}/geometry".format(self.__class__.__name__), self.saveGeometry())
+        settings.write(f"{self.__class__.__name__}/geometry", self.saveGeometry())
         super().closeEvent(event)
 
     @pyqtSlot()

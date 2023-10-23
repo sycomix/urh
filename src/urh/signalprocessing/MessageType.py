@@ -39,7 +39,7 @@ class MessageType(list):
         return super().__getitem__(index)
 
     def __repr__(self):
-        return self.name + " " + super().__repr__()
+        return f"{self.name} {super().__repr__()}"
 
     def __eq__(self, other):
         if isinstance(other, MessageType):
@@ -73,11 +73,7 @@ class MessageType(list):
             if field_type.function == FieldType.Function.CHECKSUM:
                 # If we have sync or preamble labels start behind last one:
                 pre_sync_label_ends = [lbl.end for lbl in self if lbl.is_preamble or lbl.is_sync]
-                if len(pre_sync_label_ends) > 0:
-                    range_start = max(pre_sync_label_ends)
-                else:
-                    range_start = 0
-
+                range_start = max(pre_sync_label_ends, default=0)
                 if range_start >= start:
                     range_start = 0
 
@@ -134,7 +130,7 @@ class MessageType(list):
         avail_colors = [i for i, _ in enumerate(settings.LABEL_COLORS) if i not in used_colors]
 
         if color_ind is None:
-            if len(avail_colors) > 0:
+            if avail_colors:
                 color_ind = avail_colors[0]
             else:
                 color_ind = random.randint(0, len(settings.LABEL_COLORS) - 1)
@@ -162,7 +158,7 @@ class MessageType(list):
         if lbl in self:
             super().remove(lbl)
         else:
-            logger.warning(lbl.name + " is not in set, so can't be removed")
+            logger.warning(f"{lbl.name} is not in set, so can't be removed")
 
     def change_field_type_of_label(self, label: ProtocolLabel, field_type: FieldType):
         if not isinstance(label, ProtocolLabel) and hasattr(label, "field_type"):
@@ -185,7 +181,7 @@ class MessageType(list):
             try:
                 result.append(lbl.to_xml())
             except TypeError:
-                logger.error("Could not save label: " + str(lbl))
+                logger.error(f"Could not save label: {str(lbl)}")
 
         result.append(self.ruleset.to_xml())
 
@@ -199,11 +195,18 @@ class MessageType(list):
         id = tag.get("id", None)
         assigned_by_ruleset = bool(int(tag.get("assigned_by_ruleset", 0)))
         assigned_by_logic_analyzer = bool(int(tag.get("assigned_by_logic_analyzer", 0)))
-        labels = []
-        for lbl_tag in tag.findall("label"):
-            labels.append(ProtocolLabel.from_xml(lbl_tag, field_types_by_caption=field_types_by_caption))
-        for lbl_tag in tag.findall("checksum_label"):
-            labels.append(ChecksumLabel.from_xml(lbl_tag, field_types_by_caption=field_types_by_caption))
+        labels = [
+            ProtocolLabel.from_xml(
+                lbl_tag, field_types_by_caption=field_types_by_caption
+            )
+            for lbl_tag in tag.findall("label")
+        ]
+        labels.extend(
+            ChecksumLabel.from_xml(
+                lbl_tag, field_types_by_caption=field_types_by_caption
+            )
+            for lbl_tag in tag.findall("checksum_label")
+        )
         result = MessageType(name=name, iterable=labels, id=id, ruleset=Ruleset.from_xml(tag.find("ruleset")))
         result.assigned_by_ruleset = assigned_by_ruleset
         result.assigned_by_logic_analyzer = assigned_by_logic_analyzer

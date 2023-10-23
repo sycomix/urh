@@ -57,10 +57,12 @@ class SequenceNumberEngine(Engine):
 
             # For example, index 1 in diff matrix corresponds to index 1 and 2 of messages
             message_indices = set(message_indices) | set(message_indices + 1)
-            values = set()
-            for i in message_indices:
-                values.add(self.bitvectors[i][candidate_column * n:(candidate_column + 1) * n].tobytes())
-
+            values = {
+                self.bitvectors[i][
+                    candidate_column * n : (candidate_column + 1) * n
+                ].tobytes()
+                for i in message_indices
+            }
             matching_ranges = [r for r in result if r.message_indices == message_indices]
 
             try:

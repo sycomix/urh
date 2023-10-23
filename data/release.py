@@ -48,7 +48,7 @@ def release():
 
     # Publish new version number
     call(["git", "add", version_file])
-    call(["git", "commit", "-m", "version" + cur_version])
+    call(["git", "commit", "-m", f"version{cur_version}"])
 
     input("Pushing to GitHub now. Press a key to continue.")
     call(["git", "push"])
@@ -60,7 +60,7 @@ def release():
     call(["git", "fetch", "--tags"])
 
     # Push new tag
-    call(["git", "tag", "v" + cur_version, "-m", "version " + cur_version])
+    call(["git", "tag", f"v{cur_version}", "-m", f"version {cur_version}"])
     call(["git", "push", "origin", "--tags"])  # Creates tar package on https://github.com/jopohl/urh/tarball/va.b.c.d
 
     os.remove(os.path.join(tempfile.gettempdir(), "urh_releasing"))
@@ -68,11 +68,20 @@ def release():
     # region Build docker image and push to DockerHub
     os.chdir(os.path.dirname(__file__))
     call(["docker", "login"])
-    call(["docker", "build", "--no-cache",
-          "--tag", "jopohl/urh:latest",
-          "--tag", "jopohl/urh:{}".format(cur_version), "."])
+    call(
+        [
+            "docker",
+            "build",
+            "--no-cache",
+            "--tag",
+            "jopohl/urh:latest",
+            "--tag",
+            f"jopohl/urh:{cur_version}",
+            ".",
+        ]
+    )
     call(["docker", "push", "jopohl/urh:latest"])
-    call(["docker", "push", "jopohl/urh:{}".format(cur_version)])
+    call(["docker", "push", f"jopohl/urh:{cur_version}"])
     # endregion
 
 

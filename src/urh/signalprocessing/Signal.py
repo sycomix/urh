@@ -61,7 +61,7 @@ class Signal(QObject):
 
         self.__parameter_cache = {mod: {"center": None, "samples_per_symbol": None} for mod in self.MODULATION_TYPES}
 
-        if len(filename) > 0:
+        if filename != "":
             if self.wav_mode:
                 self.__load_wav_file(filename)
             elif filename.endswith(".coco"):
@@ -109,7 +109,9 @@ class Signal(QObject):
         if num_channels == 1:
             self.iq_array.real = np.multiply(1 / params["max"], np.subtract(data, params["center"]))
         elif num_channels == 2:
-            self.iq_array.real = np.multiply(1 / params["max"], np.subtract(data[0::2], params["center"]))
+            self.iq_array.real = np.multiply(
+                1 / params["max"], np.subtract(data[::2], params["center"])
+            )
             self.iq_array.imag = np.multiply(1 / params["max"], np.subtract(data[1::2], params["center"]))
         else:
             raise ValueError("Can't handle {0} channels. Only 1 and 2 are supported.".format(num_channels))
@@ -171,7 +173,7 @@ class Signal(QObject):
     @bits_per_symbol.setter
     def bits_per_symbol(self, value: int):
         if self.__bits_per_symbol != value:
-            self.__bits_per_symbol = int(value)
+            self.__bits_per_symbol = value
             self._qad = None
 
             self.bits_per_symbol_changed.emit(self.__bits_per_symbol)
@@ -341,7 +343,7 @@ class Signal(QObject):
 
     def calc_relative_noise_threshold_from_range(self, noise_start: int, noise_end: int):
         num_digits = 4
-        noise_start, noise_end = int(noise_start), int(noise_end)
+        noise_start, noise_end = noise_start, noise_end
 
         if noise_start > noise_end:
             noise_start, noise_end = noise_end, noise_start
@@ -350,11 +352,13 @@ class Signal(QObject):
             maximum = np.max(self.iq_array.subarray(noise_start, noise_end).magnitudes_normalized)
             return np.ceil(maximum * 10 ** num_digits) / 10 ** num_digits
         except ValueError:
-            logger.warning("Could not calculate noise threshold for range {}-{}".format(noise_start, noise_end))
+            logger.warning(
+                f"Could not calculate noise threshold for range {noise_start}-{noise_end}"
+            )
             return self.noise_threshold_relative
 
     def create_new(self, start=0, end=0, new_data=None):
-        new_signal = Signal("", "New " + self.name)
+        new_signal = Signal("", f"New {self.name}")
 
         if new_data is None:
             new_signal.iq_array = IQArray(self.iq_array[start:end])
@@ -456,7 +460,7 @@ class Signal(QObject):
             self.iq_array.apply_mask(mask)
             self._qad = self._qad[mask] if self._qad is not None else None
         except IndexError as e:
-            logger.warning("Could not delete data: " + str(e))
+            logger.warning(f"Could not delete data: {str(e)}")
 
         self.__invalidate_after_edit()
 

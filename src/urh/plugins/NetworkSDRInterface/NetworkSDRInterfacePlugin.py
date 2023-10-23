@@ -138,8 +138,6 @@ class NetworkSDRInterfacePlugin(SDRPlugin):
     def current_receive_index(self, value):
         if hasattr(self, "server") and hasattr(self.server, "current_receive_index"):
             self.server.current_receive_index = value
-        else:
-            pass
 
     def free_data(self):
         if self.raw_mode:
@@ -217,7 +215,7 @@ class NetworkSDRInterfacePlugin(SDRPlugin):
             sock.connect((self.client_ip, self.client_port))
             return sock
         except Exception as e:
-            msg = "Could not establish connection " + str(e)
+            msg = f"Could not establish connection {str(e)}"
             self.error_occurred.emit(msg)
             logger.error(msg)
             return None
@@ -288,16 +286,17 @@ class NetworkSDRInterfacePlugin(SDRPlugin):
                 wait_time = msg.pause / sample_rates[i]
 
                 self.current_send_message_changed.emit(i)
-                error = self.send_data(self.bit_str_to_bytearray(msg.encoded_bits_str) + b"\n", sock)
-                if not error:
+                if error := self.send_data(
+                    self.bit_str_to_bytearray(msg.encoded_bits_str) + b"\n", sock
+                ):
+                    logger.critical("Could not connect to {0}:{1}".format(self.client_ip, self.client_port))
+                    break
+                else:
                     logger.debug("Sent message {0}/{1}".format(i + 1, len(messages)))
                     logger.debug("Waiting message pause: {0:.2f}s".format(wait_time))
                     if self.__sending_interrupt_requested:
                         break
                     time.sleep(wait_time)
-                else:
-                    logger.critical("Could not connect to {0}:{1}".format(self.client_ip, self.client_port))
-                    break
             logger.debug("Sending finished")
         finally:
             self.is_sending = False

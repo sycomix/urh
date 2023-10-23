@@ -55,7 +55,7 @@ class SimulatorScene(QGraphicsScene):
 
         self.items_dict = {}
 
-        self.on_items_added([item for item in self.simulator_config.rootItem.children])
+        self.on_items_added(list(self.simulator_config.rootItem.children))
 
         self.create_connects()
 
@@ -375,7 +375,7 @@ class SimulatorScene(QGraphicsScene):
 
     def dropEvent(self, event: QDropEvent):
         items = [item for item in self.items(event.scenePos()) if isinstance(item, GraphicsItem) and item.acceptDrops()]
-        item = None if len(items) == 0 else items[0]
+        item = None if not items else items[0]
         if len(event.mimeData().urls()) > 0:
             self.files_dropped.emit(event.mimeData().urls())
 
@@ -475,7 +475,9 @@ class SimulatorScene(QGraphicsScene):
         return sim_message
 
     def clear_all(self):
-        self.simulator_config.delete_items([item for item in self.simulator_config.rootItem.children])
+        self.simulator_config.delete_items(
+            list(self.simulator_config.rootItem.children)
+        )
 
     def add_protocols(self, ref_item, position, protocols_to_add: list):
         pos, parent = self.insert_at(ref_item, position)
@@ -517,9 +519,15 @@ class SimulatorScene(QGraphicsScene):
 
         if message.participant:
             source = message.participant
-            dst_address_label = next((lbl for lbl in message.message_type if lbl.field_type and
-                                      lbl.field_type.function == FieldType.Function.DST_ADDRESS), None)
-            if dst_address_label:
+            if dst_address_label := next(
+                (
+                    lbl
+                    for lbl in message.message_type
+                    if lbl.field_type
+                    and lbl.field_type.function == FieldType.Function.DST_ADDRESS
+                ),
+                None,
+            ):
                 start, end = message.get_label_range(dst_address_label, view=1, decode=True)
                 dst_address = message.decoded_hex_str[start:end]
                 dst = next((p for p in participants if p.address_hex == dst_address), None)

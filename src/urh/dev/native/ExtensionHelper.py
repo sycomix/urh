@@ -56,12 +56,11 @@ def compiler_has_function(compiler, function_name, libraries, library_dirs, incl
     devnull = old_stderr = None
     try:
         try:
-            file_name = os.path.join(tmp_dir, '{}.c'.format(function_name))
-            f = open(file_name, 'w')
-            f.write('int main(void) {\n')
-            f.write('    %s();\n' % function_name)
-            f.write('}\n')
-            f.close()
+            file_name = os.path.join(tmp_dir, f'{function_name}.c')
+            with open(file_name, 'w') as f:
+                f.write('int main(void) {\n')
+                f.write('    %s();\n' % function_name)
+                f.write('}\n')
             # Redirect stderr to /dev/null to hide any error messages from the compiler.
             devnull = open(os.devnull, 'w')
             old_stderr = os.dup(sys.stderr.fileno())
@@ -84,32 +83,31 @@ def check_api_version(compiler, api_version_code, libraries, library_dirs, inclu
     tmp_dir = tempfile.mkdtemp(prefix='urh-')
     devnull = old_stderr = None
     try:
-        try:
-            file_name = os.path.join(tmp_dir, 'get_api_version.c')
-            with open(file_name, 'w') as f:
-                f.write(api_version_code)
+        file_name = os.path.join(tmp_dir, 'get_api_version.c')
+        with open(file_name, 'w') as f:
+            f.write(api_version_code)
 
-            # Redirect stderr to /dev/null to hide any error messages from the compiler.
-            devnull = open(os.devnull, 'w')
-            old_stderr = os.dup(sys.stderr.fileno())
-            os.dup2(devnull.fileno(), sys.stderr.fileno())
-            objects = compiler.compile([file_name], include_dirs=include_dirs)
-            check_api_program = os.path.join(tmp_dir, "check_api")
-            compiler.link_executable(objects, check_api_program, library_dirs=library_dirs, libraries=libraries)
+        # Redirect stderr to /dev/null to hide any error messages from the compiler.
+        devnull = open(os.devnull, 'w')
+        old_stderr = os.dup(sys.stderr.fileno())
+        os.dup2(devnull.fileno(), sys.stderr.fileno())
+        objects = compiler.compile([file_name], include_dirs=include_dirs)
+        check_api_program = os.path.join(tmp_dir, "check_api")
+        compiler.link_executable(objects, check_api_program, library_dirs=library_dirs, libraries=libraries)
 
-            env = os.environ.copy()
-            env["PATH"] = os.pathsep.join(library_dirs) + os.pathsep + os.environ.get("PATH", "")
-            if sys.platform == "darwin":
-                for path in ("LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH"):
-                    ld_path = os.pathsep.join(library_dirs) + os.pathsep + os.environ.get(path, "")
-                    env[path] = ld_path
+        env = os.environ.copy()
+        env["PATH"] = os.pathsep.join(library_dirs) + os.pathsep + os.environ.get("PATH", "")
+        if sys.platform == "darwin":
+            for path in ("LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH"):
+                ld_path = os.pathsep.join(library_dirs) + os.pathsep + os.environ.get(path, "")
+                env[path] = ld_path
 
-            result = float(check_output(check_api_program, env=env))
-            print("    Automatic API version check succeeded.")
-            return result
-        except Exception as e:
-            print("    API version check failed: {}".format(e))
-            return 0.0
+        result = float(check_output(check_api_program, env=env))
+        print("    Automatic API version check succeeded.")
+        return result
+    except Exception as e:
+        print(f"    API version check failed: {e}")
+        return 0.0
     finally:
         if old_stderr is not None:
             os.dup2(old_stderr, sys.stderr.fileno())
@@ -148,11 +146,11 @@ def get_device_extensions_and_extras(library_dirs=None, include_dirs=None):
     build_device_extensions = defaultdict(lambda: None)
 
     for dev_name in DEVICES:
-        with_option = "--with-" + dev_name
-        without_option = "--without-" + dev_name
+        with_option = f"--with-{dev_name}"
+        without_option = f"--without-{dev_name}"
 
         if with_option in sys.argv and without_option in sys.argv:
-            print("ambiguous options for " + dev_name)
+            print(f"ambiguous options for {dev_name}")
             sys.exit(1)
         elif without_option in sys.argv:
             build_device_extensions[dev_name] = 0
@@ -179,23 +177,25 @@ def get_device_extensions_and_extras(library_dirs=None, include_dirs=None):
 
         device_extras.update(get_device_extras(compiler, dev_name, [params["lib"]], library_dirs, include_dirs))
         if "api_version_check_code" in params:
-            env_name = dev_name.upper() + "_API_VERSION"
+            env_name = f"{dev_name.upper()}_API_VERSION"
             ver = os.getenv(env_name)
             if ver is not None:
                 try:
                     ver = float(ver)
                 except Exception as e:
-                    print("    Could not convert content of {} to float: {}".format(env_name, e))
+                    print(f"    Could not convert content of {env_name} to float: {e}")
                     print("    Will now try to automatically detect API version.")
                     ver = None
             else:
-                print("    Environment variable {} is unset, try to automatically detect API version".format(env_name))
+                print(
+                    f"    Environment variable {env_name} is unset, try to automatically detect API version"
+                )
 
             if ver is None:
                 ver = check_api_version(compiler, params["api_version_check_code"], (params["lib"],),
                                         library_dirs, include_dirs)
             device_extras[env_name] = ver
-            print("    Using {}={}".format(env_name, ver))
+            print(f"    Using {env_name}={ver}")
 
         extension = get_device_extension(dev_name, [params["lib"]], library_dirs, include_dirs)
         result.append(extension)
@@ -215,7 +215,7 @@ def get_device_extras(compiler, dev_name, libraries, library_dirs, include_dirs)
         if compiler_has_function(compiler, func_name, libraries, library_dirs, include_dirs):
             result[extra] = 1
         else:
-            print("Skipping {} as installed driver does not support it".format(extra))
+            print(f"Skipping {extra} as installed driver does not support it")
             result[extra] = 0
 
     return result
@@ -234,20 +234,24 @@ def get_device_extension(dev_name: str, libraries: list, library_dirs: list, inc
     else:
         cpp_file_path = os.path.join(cur_dir, "lib", "{0}.pyx".format(dev_name))
 
-    return Extension("urh.dev.native.lib." + dev_name,
-                     [cpp_file_path],
-                     libraries=libraries, library_dirs=library_dirs,
-                     include_dirs=include_dirs, language=language)
+    return Extension(
+        f"urh.dev.native.lib.{dev_name}",
+        [cpp_file_path],
+        libraries=libraries,
+        library_dirs=library_dirs,
+        include_dirs=include_dirs,
+        language=language,
+    )
 
 
 def perform_health_check() -> str:
     result = []
     for device in sorted(DEVICES.keys()):
         try:
-            _ = import_module("urh.dev.native.lib." + device)
-            result.append(device + " -- OK")
+            _ = import_module(f"urh.dev.native.lib.{device}")
+            result.append(f"{device} -- OK")
         except ImportError as e:
-            result.append(device + " -- ERROR: " + str(e))
+            result.append(f"{device} -- ERROR: {str(e)}")
 
     return "\n".join(result)
 
@@ -282,7 +286,7 @@ if __name__ == "__main__":
 
     dev_extensions, dev_extras = get_device_extensions_and_extras(library_dirs=library_directories,
                                                                   include_dirs=include_directories)
-    sys.argv.append("-j{}".format(os.cpu_count()))
+    sys.argv.append(f"-j{os.cpu_count()}")
 
     setup(
         name="urh",

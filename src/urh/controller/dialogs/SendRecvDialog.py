@@ -56,7 +56,7 @@ class SendRecvDialog(QDialog):
         self.timer = QTimer(self)
 
         try:
-            self.restoreGeometry(settings.read("{}/geometry".format(self.__class__.__name__)))
+            self.restoreGeometry(settings.read(f"{self.__class__.__name__}/geometry"))
         except TypeError:
             pass
 
@@ -235,10 +235,7 @@ class SendRecvDialog(QDialog):
             self.ui.labelReceiveBufferFull.setText("{0}%".format(int(100 * self.device.current_index /
                                                                      len(self.device.data))))
 
-        if self.device.current_index == 0:
-            return False
-
-        return True
+        return self.device.current_index != 0
 
     def _restart_device_thread(self):
         self.device.stop("Restarting with new port")
@@ -274,7 +271,7 @@ class SendRecvDialog(QDialog):
             logger.debug("Successfully cleaned up device")
             self.device_settings_widget.emit_device_parameters_changed()
 
-        settings.write("{}/geometry".format(self.__class__.__name__), self.saveGeometry())
+        settings.write(f"{self.__class__.__name__}/geometry", self.saveGeometry())
 
         if self.device is not None:
             self.device.free_data()
